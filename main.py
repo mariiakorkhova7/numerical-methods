@@ -85,7 +85,7 @@ def thomas_algorithm(alpha, beta, gamma, delta):
     B = np.zeros(n)
     c = np.zeros(n)
 
-    # Пряма прогонка (ітерація від 0 до n-2)
+
     A[0] = -gamma[0] / beta[0]
     B[0] = delta[0] / beta[0]
 
@@ -94,19 +94,22 @@ def thomas_algorithm(alpha, beta, gamma, delta):
         A[i] = -gamma[i] / denominator
         B[i] = (delta[i] - alpha[i] * B[i-1]) / denominator
 
-    # Зворотна прогонка
-    # Обчислення останнього вузла n-1
+
     denominator_n = alpha[-1] * A[-2] + beta[-1]
     c[-1] = (delta[-1] - alpha[-1] * B[-2]) / denominator_n
 
-    # Послідовне обчислення решти коефіцієнтів від n-2 до 0
+
     for i in range(n - 2, -1, -1):
         c[i] = A[i] * c[i+1] + B[i]
 
     return c
 
-# Виконання обчислень та вивід результатів
+
 c = thomas_algorithm(alpha, beta, gamma, delta)
+
+print("\nКоефіцієнти c_i (розв'язок СЛАР) ---")
+for i in range(n):
+    print(f"c[{i:2d}] = {c[i]:15.6f}")
 
 a = np.zeros(n - 1)
 b = np.zeros(n - 1)
@@ -122,6 +125,62 @@ print(f"{'Інтервал':>8} | {'a':>10} | {'b':>12} | {'c':>12} | {'d':>15}"
 print("-" * 65)
 for i in range(n - 1):
     print(f"{i:8d} | {a[i]:10.2f} | {b[i]:12.6f} | {c[i]:12.6f} | {d[i]:15.8f}")
+
+def get_spline_coeffs(x_nodes, y_nodes):
+    n_nodes = len(x_nodes)
+    h_steps = np.diff(x_nodes)
+    al, be, ga, de = np.zeros(n_nodes), np.zeros(n_nodes), np.zeros(n_nodes), np.zeros(n_nodes)
+    
+    be[0], be[-1] = 1.0, 1.0
+    for i in range(1, n_nodes - 1):
+        al[i] = h_steps[i-1]
+        be[i] = 2 * (h_steps[i-1] + h_steps[i])
+        ga[i] = h_steps[i]
+        de[i] = 3 * ((y_nodes[i+1] - y_nodes[i]) / h_steps[i] - (y_nodes[i] - y_nodes[i-1]) / h_steps[i-1])
+        
+    c_cf = thomas_algorithm(al, be, ga, de)
+    a_cf, b_cf, d_cf = np.zeros(n_nodes-1), np.zeros(n_nodes-1), np.zeros(n_nodes-1)
+    
+    for i in range(n_nodes - 1):
+        a_cf[i] = y_nodes[i]
+        b_cf[i] = (y_nodes[i+1] - y_nodes[i]) / h_steps[i] - (h_steps[i] / 3.0) * (2.0 * c_cf[i] + c_cf[i+1])
+        d_cf[i] = (c_cf[i+1] - c_cf[i]) / (3.0 * h_steps[i])
+        
+    return a_cf, b_cf, c_cf, d_cf
+
+def spline_eval(xi, x_nodes, a_cf, b_cf, c_cf, d_cf):
+    for i in range(len(a_cf)):
+        if x_nodes[i] <= xi <= x_nodes[i+1] or (i == len(a_cf)-1 and xi >= x_nodes[i+1]):
+            dx = xi - x_nodes[i]
+            return a_cf[i] + b_cf[i]*dx + c_cf[i]*dx**2 + d_cf[i]*dx**3
+    return None
+
+def get_subset_spline(k, x_full, y_full, xx_dense):
+    indices = np.linspace(0, len(x_full)-1, k, dtype=int)
+    x_k, y_k = x_full[indices], y_full[indices]
+    
+    a_k, b_k, c_k, d_k = get_spline_coeffs(x_k, y_k)
+    return np.array([spline_eval(xi, x_k, a_k, b_k, c_k, d_k) for xi in xx_dense])
+
+xx = np.linspace(x[0], x[-1], 500)
+yy_full = np.array([spline_eval(xi, x, a, b, c, d) for xi in xx])
+
+yy_10 = get_subset_spline(10, x, y, xx)
+yy_15 = get_subset_spline(15, x, y, xx)
+yy_20 = get_subset_spline(20, x, y, xx)
+
+plt.figure(figsize=(10, 6))
+plt.plot(x, y, 'o', color='black', label="Оригінальні GPS точки (21)")
+plt.plot(xx, yy_full, label="Еталонний сплайн (21 вузол)", linewidth=2)
+plt.plot(xx, yy_10, label="10 вузлів", linestyle='--')
+plt.plot(xx, yy_15, label="15 вузлів", linestyle='-.')
+plt.plot(xx, yy_20, label="20 вузлів", linestyle=':')
+plt.xlabel("Кумулятивна відстань (м)")
+plt.ylabel("Висота (м)")
+plt.title("Вплив кількості вузлів на точність кубічного сплайна")
+plt.legend()
+plt.grid(True)
+plt.show()
 
 plt.figure()
 plt.plot(distances, elevations, marker='o', linestyle='-', color='green')
