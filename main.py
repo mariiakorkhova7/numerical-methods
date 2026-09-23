@@ -49,10 +49,41 @@ print("№  | Distance (m) | Elevation (m)")
 for i in range(n):
     print(f"{i:2d} | {distances[i]:10.2f} | {elevations[i]:8.2f}")
 
+x = np.array(distances)
+y = np.array(elevations)
+n = len(x)
+h = np.diff(x)
+
+alpha = np.zeros(n)
+beta = np.zeros(n)
+gamma = np.zeros(n)
+delta = np.zeros(n)
+
+beta[0] = 1.0
+gamma[0] = 0.0
+delta[0] = 0.0
+
+beta[-1] = 1.0
+alpha[-1] = 0.0
+delta[-1] = 0.0
+
+for i in range(1, n - 1):
+    alpha[i] = h[i-1]
+    beta[i] = 2 * (h[i-1] + h[i])
+    gamma[i] = h[i]
+    delta[i] = 3 * ((y[i+1] - y[i]) / h[i] - (y[i] - y[i-1]) / h[i-1])
+
+print("\nКоефіцієнти системи лінійних алгебраїчних рівнянь")
+print(f"{'i':>2} | {'Альфа (α)':>12} | {'Бета (β)':>12} | {'Гамма (γ)':>12} | {'Дельта (δ)':>12}")
+print("-" * 63)
+for i in range(n):
+    print(f"{i:2d} | {alpha[i]:12.4f} | {beta[i]:12.4f} | {gamma[i]:12.4f} | {delta[i]:12.4f}")
+
 plt.figure()
 plt.plot(distances, elevations, marker='o', linestyle='-', color='green')
 plt.xlabel("Кумулятивна відстань (м)")
 plt.ylabel("Висота (м)")
-plt.title("Висота маршруту від кумулятивної відстані")
+plt.title("Залежність висоти маршруту від кумулятивної відстані")
 plt.grid(True)
 plt.show()
+
