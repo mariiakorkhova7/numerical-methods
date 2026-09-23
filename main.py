@@ -79,6 +79,50 @@ print("-" * 63)
 for i in range(n):
     print(f"{i:2d} | {alpha[i]:12.4f} | {beta[i]:12.4f} | {gamma[i]:12.4f} | {delta[i]:12.4f}")
 
+def thomas_algorithm(alpha, beta, gamma, delta):
+    n = len(delta)
+    A = np.zeros(n)
+    B = np.zeros(n)
+    c = np.zeros(n)
+
+    # Пряма прогонка (ітерація від 0 до n-2)
+    A[0] = -gamma[0] / beta[0]
+    B[0] = delta[0] / beta[0]
+
+    for i in range(1, n - 1):
+        denominator = alpha[i] * A[i-1] + beta[i]
+        A[i] = -gamma[i] / denominator
+        B[i] = (delta[i] - alpha[i] * B[i-1]) / denominator
+
+    # Зворотна прогонка
+    # Обчислення останнього вузла n-1
+    denominator_n = alpha[-1] * A[-2] + beta[-1]
+    c[-1] = (delta[-1] - alpha[-1] * B[-2]) / denominator_n
+
+    # Послідовне обчислення решти коефіцієнтів від n-2 до 0
+    for i in range(n - 2, -1, -1):
+        c[i] = A[i] * c[i+1] + B[i]
+
+    return c
+
+# Виконання обчислень та вивід результатів
+c = thomas_algorithm(alpha, beta, gamma, delta)
+
+a = np.zeros(n - 1)
+b = np.zeros(n - 1)
+d = np.zeros(n - 1)
+
+for i in range(n - 1):
+    a[i] = y[i]
+    b[i] = (y[i+1] - y[i]) / h[i] - (h[i] / 3.0) * (2.0 * c[i] + c[i+1])
+    d[i] = (c[i+1] - c[i]) / (3.0 * h[i])
+
+print("\nКоефіцієнти кубічних сплайнів")
+print(f"{'Інтервал':>8} | {'a':>10} | {'b':>12} | {'c':>12} | {'d':>15}")
+print("-" * 65)
+for i in range(n - 1):
+    print(f"{i:8d} | {a[i]:10.2f} | {b[i]:12.6f} | {c[i]:12.6f} | {d[i]:15.8f}")
+
 plt.figure()
 plt.plot(distances, elevations, marker='o', linestyle='-', color='green')
 plt.xlabel("Кумулятивна відстань (м)")
